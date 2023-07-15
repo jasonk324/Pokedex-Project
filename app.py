@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import curses
 import os
+import json
 
 from PIL import Image
 from PIL import ImageDraw
@@ -40,6 +41,10 @@ font = ImageFont.truetype('./pokemon_font.ttf', 16)
 # OS setting
 os.environ.setdefault("ESCDELAY", "15")
 
+# JSON
+with open("./Data/Pokemon(wAbilities).json", "r") as json_file:
+    data = json.load(json_file)
+
 def draw_rect_button(img: Image, text: str, loc: tuple[int, int], size: tuple[int, int],
                      fill: tuple[int, int, int] = None):
     draw = ImageDraw.Draw(img)
@@ -59,6 +64,7 @@ def draw_rect_button(img: Image, text: str, loc: tuple[int, int], size: tuple[in
 
 def draw_pokemon_entry(img: Image, entry_num: int, loc: tuple[int, int]):
     draw = ImageDraw.Draw(img)
+
     x1 = int(loc[0] - 50)
     x2 = int(loc[0] + 50)
     y1 = int(loc[1] - 45)
@@ -66,10 +72,15 @@ def draw_pokemon_entry(img: Image, entry_num: int, loc: tuple[int, int]):
 
     draw.rectangle((x1, y1, x2, y2), outline=(0, 0, 0), fill=(255, 255, 255))
 
+    image_file = Image.open("Data/Images/##0001_Bulbasaur.jpg")
+    image_file = image_file.resize((60, 60))
+
+    img.paste(image_file, ((loc[0] - 45), (loc[1] - 40)))
+
 def draw_home(img: Image, sel: int):
     draw = ImageDraw.Draw(img)
-
     draw.rectangle((0, 0, WIDTH, HEIGHT), (135, 206, 235))
+
     draw_rect_button(img, "Pokedex", (120, 65), (160, 70), 
                      (211, 211, 211) if sel == 0 else None)
     draw_rect_button(img, "Game", (120, 175), (160, 70),
@@ -77,8 +88,8 @@ def draw_home(img: Image, sel: int):
 
 def draw_pokedex(img: Image):
     draw = ImageDraw.Draw(img)
-
     draw.rectangle((0, 0, WIDTH, HEIGHT), (135, 206, 235))
+
     draw.text((0, 0), "1/200", (0, 0, 0), font=font)
     draw_pokemon_entry(img, 0, (60, 70))
     draw_pokemon_entry(img, 0, (180, 70))
