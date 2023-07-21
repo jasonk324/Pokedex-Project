@@ -29,6 +29,12 @@ class AppState(Enum):
     POKEDEX = 1
     GAME = 2
 
+class PokedexState(Enum):
+    ENTRY0 = 0
+    ENTRY1 = 1
+    ENTRY2 = 2
+    ENTRY3 = 3
+
 # Initialize display.
 disp.begin()
 
@@ -37,13 +43,16 @@ HEIGHT = disp.height
 
 # Load font
 font = ImageFont.truetype('./pokemon_font.ttf', 16)
+name_font = ImageFont.truetype('./pokemon_font.ttf', 10) # Smaller version for pokemon names
+GREY = (230, 230, 230)
 
 # OS setting
 os.environ.setdefault("ESCDELAY", "15")
 
 # JSON
+json_data = None
 with open("./Data/Pokemon(wAbilities).json", "r") as json_file:
-    data = json.load(json_file)
+    json_data = json.load(json_file)
 
 def draw_rect_button(img: Image, text: str, loc: tuple[int, int], size: tuple[int, int],
                      fill: tuple[int, int, int] = None):
@@ -57,12 +66,13 @@ def draw_rect_button(img: Image, text: str, loc: tuple[int, int], size: tuple[in
 
     # Draw rectangle
     draw.rectangle((x1, y1, x2, y2), outline=(0, 0, 0),
-                   fill=(255, 255, 255) if fill is None else fill)
+                    fill=(255, 255, 255) if fill is None else fill)
 
     # Draw text
     draw.text((loc[0], loc[1]), text, (0, 0, 0), font=font, anchor="mm")
 
-def draw_pokemon_entry(img: Image, entry_num: int, loc: tuple[int, int]):
+def draw_pokemon_entry(img: Image, entry_num: int, loc: tuple[int, int],
+                       fill: tuple[int, int, int] = None):
     draw = ImageDraw.Draw(img)
 
     x1 = int(loc[0] - 50)
@@ -70,35 +80,98 @@ def draw_pokemon_entry(img: Image, entry_num: int, loc: tuple[int, int]):
     y1 = int(loc[1] - 45)
     y2 = int(loc[1] + 45)
 
-    draw.rectangle((x1, y1, x2, y2), outline=(0, 0, 0), fill=(255, 255, 255))
+    draw.rectangle((x1, y1, x2, y2), outline=(0, 0, 0),
+                    fill=(255, 255, 255) if fill is None else fill)
 
-    image_file = Image.open("Data/Images/##0001_Bulbasaur.jpg")
+    image_path = "./Data/Images/#" + json_data[entry_num]["top_image"][9:]
+    image_file = Image.open(image_path)
     image_file = image_file.resize((60, 60))
 
     img.paste(image_file, ((loc[0] - 45), (loc[1] - 40)))
 
-def draw_home(img: Image, sel: int):
+    # Text
+    draw.text((loc[0] - 45, loc[1] + 30), json_data[entry_num]["name"],
+               (0, 0, 0), font=name_font, anchor="lm")
+
+def draw_home(img: Image, state: list, inp: int):
     draw = ImageDraw.Draw(img)
+
+    # Handle passed input, updating state if applicable
+    if inp == ord("w"):
+        if state[1] > 0:
+            state[1] -= 1
+    elif inp == ord("s"):
+        if state[1] < 1:
+            state[1] += 1
+    elif inp == curses.KEY_ENTER or inp == 10 or inp == 13:
+        if state[1] == 0:
+            state[0] = AppState.POKEDEX
+            state[1] = PokedexState.ENTRY0
+        elif state[1] == 1:
+            state[0] = AppState.GAME
+            state[1] = 0
+
+    # Refresh
     draw.rectangle((0, 0, WIDTH, HEIGHT), (135, 206, 235))
 
+    # Draw buttons with highlight based on current sel (state[1])
     draw_rect_button(img, "Pokedex", (120, 65), (160, 70), 
-                     (211, 211, 211) if sel == 0 else None)
+                     GREY if state[1] == 0 else None)
     draw_rect_button(img, "Game", (120, 175), (160, 70),
-                     (211, 211, 211) if sel == 1 else None)
+                     GREY if state[1] == 1 else None)
 
-def draw_pokedex(img: Image):
+def draw_pokedex(img: Image, state: list, inp: int):
     draw = ImageDraw.Draw(img)
+
+    # Handle passed input, updating state if applicable
+    if inp == ord("w"):
+        if state[1] is PokedexState.ENTRY2:
+            state[1] = PokedexState.ENTRY0
+        elif state[1] is PokedexState.ENTRY3:
+            state[1] = PokedexState.ENTRY1
+    elif inp == ord("s"):
+        if state[1] is PokedexState.ENTRY0:
+            state[1] = PokedexState.ENTRY2
+        elif state[1] is PokedexState.ENTRY1:
+            state[1] = PokedexState.ENTRY3
+    elif inp == ord("a"):
+        if state[1] is PokedexState.ENTRY1:
+            state[1] = PokedexState.ENTRY0
+        elif state[1] is PokedexState.ENTRY3:
+            state[1] = PokedexState.ENTRY2
+    elif inp == ord("d"):
+        if state[1] is PokedexState.ENTRY0:
+            state[1] = PokedexState.ENTRY1
+        elif state[1] is PokedexState.ENTRY2:
+            state[1] = PokedexState.ENTRY3
+    elif inp == curses.KEY_ENTER or inp == 10 or inp == 13:
+        pass
+    elif inp == 27:
+        state[0] = AppState.HOME
+        state[1] = 0
+
+    # Refresh
     draw.rectangle((0, 0, WIDTH, HEIGHT), (135, 206, 235))
 
     draw.text((0, 0), "1/200", (0, 0, 0), font=font)
-    draw_pokemon_entry(img, 0, (60, 70))
-    draw_pokemon_entry(img, 0, (180, 70))
-    draw_pokemon_entry(img, 0, (60, 170))
-    draw_pokemon_entry(img, 0, (180, 170))
+    draw_pokemon_entry(img, 0, (60, 70),
+                       GREY if state[1] is PokedexState.ENTRY0 else None)
+    draw_pokemon_entry(img, 1, (180, 70),
+                       GREY if state[1] is PokedexState.ENTRY1 else None)
+    draw_pokemon_entry(img, 2, (60, 170),
+                       GREY if state[1] is PokedexState.ENTRY2 else None)
+    draw_pokemon_entry(img, 4, (180, 170),
+                       GREY if state[1] is PokedexState.ENTRY3 else None)
 
-
-def draw_game(img: Image):
+def draw_game(img: Image, state: list, inp: int):
     draw = ImageDraw.Draw(img)
+
+    # Handle passed input, updating state if applicable
+    if inp == 27:
+        state[0] = AppState.HOME
+        state[1] = 0
+
+    # Refresh
     draw.rectangle((0, 0, WIDTH, HEIGHT), (135, 206, 235))
 
 def main(win):
@@ -109,8 +182,7 @@ def main(win):
     img = Image.new('RGB', (WIDTH, HEIGHT), color=(135, 206, 235))
 
     # Initialize state
-    state = AppState.HOME
-    sel = 0
+    state = [AppState.HOME, 0]
     kinput = None
 
     while 1:
@@ -118,28 +190,16 @@ def main(win):
         kinput = win.getch()
         if kinput >= 0:
             win.addch(kinput)
-            if kinput == ord("w"):
-                if sel > 0:
-                    sel -= 1
-            elif kinput == ord("s"):
-                if sel < 1:
-                    sel += 1
-            elif kinput == curses.KEY_ENTER or kinput == 10 or kinput == 13:
-                if sel == 0:
-                    state = AppState.POKEDEX
-                elif sel == 1:
-                    state = AppState.GAME
-            elif kinput == 27:
-                kinput = win.getch()
-                if kinput == -1:
-                    state = AppState.HOME
+        else:
+            kinput = None
         
-        if state is AppState.HOME:
-            draw_home(img, sel)
-        elif state is AppState.POKEDEX:
-            draw_pokedex(img)
-        elif state is AppState.GAME:
-            draw_game(img)
+
+        if state[0] is AppState.HOME:
+            draw_home(img, state, kinput)
+        elif state[0] is AppState.POKEDEX:
+            draw_pokedex(img, state, kinput)
+        elif state[0] is AppState.GAME:
+            draw_game(img, state, kinput)
 
         # Call to draw to screen
         disp.display(img)
